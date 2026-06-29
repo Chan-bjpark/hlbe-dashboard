@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>HLB에너지 월별 운영 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<style>
+  :root{
+    --blue:#2F5496;
+    --blue-l:#5B8FD6;
+    --blue-xl:#A9C5EA;
+    --gray:#7C8794;
+    --warn:#C0392B;
+    --bg:#F4F6F9;
+    --card:#FFFFFF;
+    --line:#E3E8EF;
+    --txt:#1E2A38;
+    --txt-sub:#6B7686;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'맑은 고딕','Malgun Gothic',-apple-system,sans-serif;
+    background:var(--bg); color:var(--txt);
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:14px 12px 40px;}
+  header.top{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:10px; margin-bottom:14px; flex-wrap:wrap;
+  }
+  .ttl h1{font-size:19px; font-weight:700; letter-spacing:-.3px;}
+  .ttl .sub{font-size:12px; color:var(--txt-sub); margin-top:3px; line-height:1.5;}
+  .ttl .sub b{color:var(--blue);}
+  .btn-refresh{
+    flex:0 0 auto; border:none; cursor:pointer;
+    background:var(--blue); color:#fff; font-weight:600; font-size:13px;
+    padding:9px 14px; border-radius:9px; display:flex; align-items:center; gap:6px;
+    box-shadow:0 1px 3px rgba(47,84,150,.3);
+  }
+  .btn-refresh:active{transform:translateY(1px);}
+  .btn-refresh.spin svg{animation:rot .8s linear infinite;}
+  @keyframes rot{to{transform:rotate(360deg);}}
+  #status{font-size:11.5px; color:var(--txt-sub); margin:-6px 0 14px; min-height:15px;}
+  #status.err{color:var(--warn);}
+  #status.ok{color:#1E7E4F;}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:15px 14px 16px; margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(30,42,56,.04);
+  }
+  .card h2{
+    font-size:15px; font-weight:700; color:var(--blue);
+    display:flex; align-items:center; gap:7px; margin-bottom:3px;
+  }
+  .card h2 .no{
+    background:var(--blue); color:#fff; font-size:12px; font-weight:700;
+    width:20px; height:20px; border-radius:6px; display:inline-flex;
+    align-items:center; justify-content:center;
+  }
+  .card .unit{font-size:11.5px; color:var(--txt-sub); margin-bottom:10px;}
+
+  /* KPI mini cards */
+  .kpis{display:flex; gap:8px; margin-bottom:12px;}
+  .kpi{
+    flex:1; background:var(--bg); border:1px solid var(--line);
+    border-radius:10px; padding:9px 6px; text-align:center;
+  }
+  .kpi .m{font-size:11px; color:var(--txt-sub);}
+  .kpi .v{font-size:18px; font-weight:700; color:var(--txt); margin-top:2px;}
+  .kpi .v small{font-size:11px; font-weight:600; color:var(--txt-sub);}
+
+  .chart-box{position:relative; width:100%;}
+  .chart-box.h-rev{height:300px;}
+  .chart-box.h-std{height:280px;}
+
+  .note{font-size:11px; color:var(--txt-sub); margin-top:9px; line-height:1.55;}
+  .note .tg{color:var(--warn); font-weight:600;}
+  footer{font-size:11px; color:var(--txt-sub); text-align:center; margin-top:8px; line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="ttl">
+      <h1>HLB에너지 월별 운영 대시보드</h1>
+      <div class="sub">기초자료 : Google Sheets <b>「보고서」</b> 시트 &nbsp;|&nbsp; 기준 : <b id="period">2026년 3월~5월</b></div>
+    </div>
+    <button class="btn-refresh" id="refreshBtn" title="구글시트 최신값 다시 불러오기">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      새로고침
+    </button>
+  </header>
+  <div id="status"></div>
+
+  <!-- 1. 매출현황 -->
+  <section class="card">
+    <h2><span class="no">1</span> 매출현황</h2>
+    <div class="chart-box h-rev"><canvas id="chartRev"></canvas></div>
+    <div class="note">단기목표 <span class="tg">월 매출 1,000백만원 초과</span> (점선 기준선)</div>
+  </section>
+
+  <!-- 2. 가동지표 -->
+  <section class="card">
+    <h2><span class="no">2</span> 가동지표</h2>
+    <div class="chart-box h-std"><canvas id="chartOps"></canvas></div>
+    <div class="note">단기목표 <span class="tg">평균소각단가 15만원</span> (점선 기준선)</div>
+  </section>
+
+  <!-- 3. 스팀지표 -->
+  <section class="card">
+    <h2><span class="no">3</span> 스팀지표</h2>
+    <div class="chart-box h-std"><canvas id="chartStm"></canvas></div>
+  </section>
+
+  <footer>
+    최종 갱신 : <span id="updated">-</span><br>
+    ※ 새로고침이 작동하려면 원본 시트가 "링크가 있는 모든 사용자 보기 가능"으로 공유돼 있어야 합니다. 실패 시 마지막 값이 유지됩니다.
+  </footer>
+</div>
+
+<script>
+Chart.register(ChartDataLabels);
+
+const SHEET_ID = '1Eym9hG0_hfPIG74O3UaZTb1_sE-Stasl';
+const GID = '856949396';
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
+const MONTH_COLS = [3,4,5,6,7,8,9,10,11,12]; // 보고서 시트 월 컬럼 순서
+
+// 색상
+const C = getComputedStyle(document.documentElement);
+const BLUE = C.getPropertyValue('--blue').trim();
+const BLUE_L = C.getPropertyValue('--blue-l').trim();
+const BLUE_XL = C.getPropertyValue('--blue-xl').trim();
+const GRAY = C.getPropertyValue('--gray').trim();
+const WARN = C.getPropertyValue('--warn').trim();
+
+// ── 임베드 기본값 (보고서 시트 요약 블록, 새로고침 실패 시 fallback) ──
+let DATA = {
+  '소각매출':     [288,335,359,0,0,0,0,0,0,0],
+  '스팀매출':     [421,448,447,0,0,0,0,0,0,0],
+  '기타매출':     [14,17,13,0,0,0,0,0,0,0],
+  '매출':         [723,801,818,0,0,0,0,0,0,0],
+  '가동일수':     [26,28,23,6,0,0,0,0,0,0],
+  '일평균소각량': [128,121,141,132,0,0,0,0,0,0],
+  '평균소각단가': [83365,100823,102844,0,0,0,0,0,0,0],
+  '생산총량':     [11970,12756,12725,0,0,0,0,0,0,0],
+  '시간당평균':   [19.2,19.0,23.1,0.0,0,0,0,0,0,0]
+};
+
+let charts = {};
+
+// ── 유틸 ──
+const num = s => { const n = parseFloat(String(s).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; };
+const fmt = n => n.toLocaleString('ko-KR');
+const fmt1 = n => n.toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1});
+
+// 차트 x축 = 3월~12월 전체 (데이터 없는 월은 공란)
+function chartIdx(){ return MONTH_COLS.map((_,i)=>i); }
+// KPI 카드 = 실제 데이터가 있는 월(매출 합계 > 0, 진행중 당월 제외 → 직전월까지)
+function dataIdx(){
+  const idx=[];
+  DATA['매출'].forEach((v,i)=>{ if(v>0) idx.push(i); });
+  return idx.length?idx:[0,1,2];
+}
+// 0/빈값 → null (막대·점·라벨 모두 비움)
+const nz = v => (v && v!==0) ? v : null;
+
+// ── CSV 파서 (따옴표 내 콤마 처리) ──
+function parseCSV(text){
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=c;
+    } else {
+      if(c==='"') q=true;
+      else if(c===','){ row.push(cell); cell=''; }
+      else if(c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+      else if(c==='\r'){}
+      else cell+=c;
+    }
+  }
+  if(cell.length||row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+
+// CSV → DATA (각 라벨 첫 출현행 사용, 값은 컬럼 인덱스 2..11)
+function csvToData(text){
+  const rows=parseCSV(text);
+  const labels=Object.keys(DATA);
+  const out={};
+  for(const lb of labels){
+    for(const r of rows){
+      if((r[1]||'').trim()===lb){
+        out[lb]=MONTH_COLS.map((m,k)=>num(r[2+k]));
+        break;
+      }
+    }
+  }
+  // 매출 합계 라벨이 '매출' 한 단어라 다른 셀과 충돌 없는지 확인용 — 누락 시 합산 대체
+  if(!out['매출'] && out['소각매출']){
+    out['매출']=out['소각매출'].map((v,i)=>v+(out['스팀매출']?.[i]||0)+(out['기타매출']?.[i]||0));
+  }
+  if(Object.keys(out).length<5) throw new Error('시트 형식 불일치');
+  return out;
+}
+
+// ── 기간 표시 ──
+function updatePeriod(idx){
+  document.getElementById('period').textContent =
+    `2026년 ${MONTH_COLS[idx[0]]}월~${MONTH_COLS[idx[idx.length-1]]}월`;
+}
+
+// ── 그래프 상단 2줄 박스(월 + 값) ──
+function drawTopBox(ctx,cx,topY,l1,l2){
+  ctx.save();
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.font='600 9.5px "맑은 고딕",sans-serif'; const w1=ctx.measureText(l1).width;
+  ctx.font='700 12px "맑은 고딕",sans-serif';   const w2=ctx.measureText(l2).width;
+  const w=Math.max(w1,w2)+16, h=31, r=6;
+  const x=cx-w/2, y=topY;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);     ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+  ctx.fillStyle='#fff'; ctx.fill();
+  ctx.lineWidth=1.2; ctx.strokeStyle=BLUE; ctx.stroke();
+  ctx.fillStyle='#6B7686'; ctx.font='600 9.5px "맑은 고딕",sans-serif';
+  ctx.fillText(l1, cx, y+13);
+  ctx.fillStyle=BLUE; ctx.font='700 12px "맑은 고딕",sans-serif';
+  ctx.fillText(l2, cx, y+26);
+  ctx.restore();
+}
+// 상단에 박스를 고정 표기하는 플러그인 (linesFn(di) → [윗줄,아랫줄] 또는 null)
+function topBoxPlugin(id,linesFn,barIdx=0){
+  return {
+    id,
+    afterDatasetsDraw(chart){
+      const ctx=chart.ctx, area=chart.chartArea;
+      const meta=chart.getDatasetMeta(barIdx);
+      chart.data.labels.forEach((_,di)=>{
+        const ln=linesFn(di); if(!ln) return;
+        const pt=meta.data[di]; if(!pt) return;
+        drawTopBox(ctx, pt.x, area.top+3, ln[0], ln[1]);
+      });
+    }
+  };
+}
+
+// ── 공통 플러그인: 목표 기준선 ──
+function targetLine(value,label,axis='y'){
+  return {
+    id:'tg_'+label,
+    afterDatasetsDraw(chart){
+      const sc=chart.scales[axis]; if(!sc) return;
+      const yp=sc.getPixelForValue(value);
+      const {left,right}=chart.chartArea;
+      const ctx=chart.ctx; ctx.save();
+      ctx.setLineDash([6,4]); ctx.lineWidth=1.5; ctx.strokeStyle=WARN;
+      ctx.beginPath(); ctx.moveTo(left,yp); ctx.lineTo(right,yp); ctx.stroke();
+      ctx.setLineDash([]); ctx.font='700 11px "맑은 고딕",sans-serif';
+      ctx.fillStyle=WARN; ctx.textAlign='right';
+      ctx.fillText(label, right-4, yp-5);
+      ctx.restore();
+    }
+  };
+}
+
+// ── 차트 렌더 ──
+function render(){
+  const cidx=chartIdx();                       // 3월~12월 전체
+  const labels=cidx.map(i=>MONTH_COLS[i]+'월');
+  updatePeriod(dataIdx());                       // 기간은 데이터 있는 월 기준
+  Object.values(charts).forEach(c=>c.destroy());
+
+  const dlBase={color:'#fff',font:{weight:'700',size:11}};
+  const barInside={...dlBase,anchor:'center',align:'center'}; // 막대 안쪽 라벨
+
+  // 상단 박스용 라인 생성기
+  const revBox = di => { const t=(DATA['소각매출'][di]||0)+(DATA['스팀매출'][di]||0)+(DATA['기타매출'][di]||0);
+                         return t>0 ? [`${MONTH_COLS[di]}월 매출`, `${fmt(Math.round(t))} 백만`] : null; };
+  const dayBox = di => DATA['매출'][di]>0 ? [`${MONTH_COLS[di]}월 가동일수`, `${DATA['가동일수'][di]} 일`] : null;
+
+  // 1. 매출현황 (누적막대 + 목표선 1000, 전체합계는 목표선 위)
+  charts.rev=new Chart(document.getElementById('chartRev'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'소각매출',data:cidx.map(i=>nz(DATA['소각매출'][i])),backgroundColor:BLUE,stack:'s'},
+      {label:'스팀매출',data:cidx.map(i=>nz(DATA['스팀매출'][i])),backgroundColor:BLUE_L,stack:'s'},
+      {label:'기타매출',data:cidx.map(i=>nz(DATA['기타매출'][i])),backgroundColor:BLUE_XL,stack:'s'}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      layout:{padding:{top:24}},
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{font:{size:10}}},
+        y:{stacked:true,beginAtZero:true,suggestedMax:1200,grid:{color:'#EEF1F5'},ticks:{font:{size:10}}}
+      },
+      plugins:{
+        legend:{position:'bottom',labels:{boxWidth:12,font:{size:11},padding:10}},
+        datalabels:{...barInside,formatter:v=>(v&&v>20)?fmt(v):'',color:c=>c.datasetIndex===2?'#33455F':'#fff'},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)+' 백만원'}}
+      }
+    },
+    plugins:[topBoxPlugin('revBox',revBox),targetLine(1000,'목표 1,000','y')]
+  });
+
+  // 2. 가동지표 (막대=일평균소각량 ton[안쪽표기], 꺾은선=평균소각단가 만원[막대 위], 목표선 15만원)
+  charts.ops=new Chart(document.getElementById('chartOps'),{
+    data:{labels,datasets:[
+      {type:'bar',label:'일평균소각량(ton)',data:cidx.map(i=>nz(DATA['일평균소각량'][i])),backgroundColor:BLUE_L,yAxisID:'y',
+       order:2,datalabels:{...barInside,color:'#fff',formatter:v=>v?fmt(v):''}},
+      {type:'line',label:'평균소각단가(만원)',data:cidx.map(i=>nz(DATA['평균소각단가'][i]/10000)),yAxisID:'y1',
+       borderColor:WARN,backgroundColor:WARN,borderWidth:2.5,tension:.3,pointRadius:4,pointBackgroundColor:'#fff',pointBorderWidth:2,spanGaps:false,
+       order:1,datalabels:{...dlBase,color:WARN,anchor:'end',align:'top',formatter:v=>v?fmt1(v):''}}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,layout:{padding:{top:8}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10}}},
+        // 소각량 축 최대값을 크게(360) → 막대를 낮춰 단가 꺾은선이 막대 위에 오도록
+        y:{position:'left',beginAtZero:true,suggestedMax:360,title:{display:true,text:'소각량(ton)',font:{size:10}},grid:{color:'#EEF1F5'},ticks:{font:{size:10}}},
+        y1:{position:'right',beginAtZero:true,suggestedMax:20,title:{display:true,text:'단가(만원)',font:{size:10}},grid:{drawOnChartArea:false},ticks:{font:{size:10}}}
+      },
+      plugins:{
+        legend:{position:'bottom',labels:{boxWidth:12,font:{size:11},padding:10}},
+        tooltip:{}
+      }
+    },
+    plugins:[topBoxPlugin('dayBox',dayBox),targetLine(15,'목표 15만원','y1')]
+  });
+
+  // 3. 스팀지표 (막대=생산총량, 꺾은선=시간당평균 → 막대 축을 키워 선이 막대 위에 오도록)
+  charts.stm=new Chart(document.getElementById('chartStm'),{
+    data:{labels,datasets:[
+      {type:'bar',label:'생산총량(ton)',data:cidx.map(i=>nz(DATA['생산총량'][i])),backgroundColor:BLUE,yAxisID:'y',
+       order:2,datalabels:{...barInside,color:'#fff',formatter:v=>v?fmt(v):''}},
+      {type:'line',label:'시간당 평균(ton/h)',data:cidx.map(i=>nz(DATA['시간당평균'][i])),yAxisID:'y1',
+       borderColor:WARN,backgroundColor:WARN,borderWidth:2.5,tension:.3,pointRadius:4,pointBackgroundColor:'#fff',pointBorderWidth:2,spanGaps:false,
+       order:1,datalabels:{...dlBase,color:WARN,anchor:'end',align:'top',formatter:v=>v?fmt1(v):''}}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10}}},
+        // 막대 축 최대값을 크게(22,000) → 막대 높이를 낮춰 시간당평균 선이 위에 오도록
+        y:{position:'left',beginAtZero:true,suggestedMax:22000,title:{display:true,text:'생산총량(ton)',font:{size:10}},grid:{color:'#EEF1F5'},ticks:{font:{size:10}}},
+        // 시간당 축 최대값을 작게(26) → 선이 차트 상단으로 올라오도록
+        y1:{position:'right',beginAtZero:true,suggestedMax:26,title:{display:true,text:'시간당(ton/h)',font:{size:10}},grid:{drawOnChartArea:false},ticks:{font:{size:10}}}
+      },
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11},padding:10}},tooltip:{}}
+    }
+  });
+}
+
+function stamp(){
+  const d=new Date();
+  document.getElementById('updated').textContent=
+    d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+
+    ' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+// ── 새로고침 ──
+async function refresh(){
+  const btn=document.getElementById('refreshBtn');
+  const st=document.getElementById('status');
+  btn.classList.add('spin'); st.className=''; st.textContent='구글시트에서 최신값 불러오는 중...';
+  try{
+    const res=await fetch(CSV_URL+'&_='+Date.now());
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const text=await res.text();
+    if(text.trim().startsWith('<')) throw new Error('접근 권한 없음(비공개 시트)');
+    DATA=csvToData(text);
+    render(); stamp();
+    st.className='ok'; st.textContent='최신 데이터로 갱신되었습니다.';
+  }catch(e){
+    st.className='err';
+    st.textContent='자동 새로고침 실패('+e.message+') — 마지막 값을 표시 중입니다. 시트 공유설정을 확인하세요.';
+  }finally{
+    btn.classList.remove('spin');
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click',refresh);
+
+// 초기 렌더 (임베드값) 후 자동 새로고침 1회 시도
+render(); stamp();
+refresh();
+</script>
+</body>
+</html>

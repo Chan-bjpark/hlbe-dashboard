@@ -6,11 +6,13 @@
 <title>HLB에너지 월별 운영 대시보드</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.5.0/dist/index.iife.js"></script>
 <style>
   :root{
     --blue:#2F5496;
     --blue-l:#5B8FD6;
     --blue-xl:#A9C5EA;
+    --navy:#1F3864;
     --gray:#7C8794;
     --warn:#C0392B;
     --bg:#F4F6F9;
@@ -33,13 +35,19 @@
   .ttl h1{font-size:19px; font-weight:700; letter-spacing:-.3px;}
   .ttl .sub{font-size:12px; color:var(--txt-sub); margin-top:3px; line-height:1.5;}
   .ttl .sub b{color:var(--blue);}
-  .btn-refresh{
-    flex:0 0 auto; border:none; cursor:pointer;
-    background:var(--blue); color:#fff; font-weight:600; font-size:13px;
+  .btns{display:flex; gap:7px; flex:0 0 auto; flex-wrap:wrap;}
+  .btn-refresh,.btn-report{
+    border:none; cursor:pointer; font-weight:600; font-size:13px;
     padding:9px 14px; border-radius:9px; display:flex; align-items:center; gap:6px;
+  }
+  .btn-refresh{
+    background:var(--blue); color:#fff;
     box-shadow:0 1px 3px rgba(47,84,150,.3);
   }
-  .btn-refresh:active{transform:translateY(1px);}
+  .btn-report{
+    background:#fff; color:var(--navy); border:1.5px solid var(--navy);
+  }
+  .btn-refresh:active,.btn-report:active{transform:translateY(1px);}
   .btn-refresh.spin svg{animation:rot .8s linear infinite;}
   @keyframes rot{to{transform:rotate(360deg);}}
   #status{font-size:11.5px; color:var(--txt-sub); margin:-6px 0 14px; min-height:15px;}
@@ -62,16 +70,6 @@
   }
   .card .unit{font-size:11.5px; color:var(--txt-sub); margin-bottom:10px;}
 
-  /* KPI mini cards */
-  .kpis{display:flex; gap:8px; margin-bottom:12px;}
-  .kpi{
-    flex:1; background:var(--bg); border:1px solid var(--line);
-    border-radius:10px; padding:9px 6px; text-align:center;
-  }
-  .kpi .m{font-size:11px; color:var(--txt-sub);}
-  .kpi .v{font-size:18px; font-weight:700; color:var(--txt); margin-top:2px;}
-  .kpi .v small{font-size:11px; font-weight:600; color:var(--txt-sub);}
-
   .chart-box{position:relative; width:100%;}
   .chart-box.h-rev{height:300px;}
   .chart-box.h-std{height:280px;}
@@ -79,6 +77,57 @@
   .note{font-size:11px; color:var(--txt-sub); margin-top:9px; line-height:1.55;}
   .note .tg{color:var(--warn); font-weight:600;}
   footer{font-size:11px; color:var(--txt-sub); text-align:center; margin-top:8px; line-height:1.6;}
+
+  /* ── 4. 운영지표 표 (모바일: 가로 스크롤 + 첫 열 고정) ── */
+  .tbl-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:8px;}
+  table.ops{
+    border-collapse:collapse; width:100%; min-width:430px;
+    font-size:12.5px;
+  }
+  table.ops th, table.ops td{
+    border:1px solid var(--line); padding:7px 8px; text-align:right; white-space:nowrap;
+  }
+  table.ops thead th{
+    background:var(--navy); color:#fff; font-weight:700; text-align:center; font-size:12px;
+  }
+  table.ops td.lb, table.ops th.lb{
+    text-align:left; font-weight:700; background:#fff;
+    position:sticky; left:0; z-index:1;
+    box-shadow:inset -1px 0 0 var(--line);
+  }
+  table.ops thead th.lb{background:var(--navy);}
+  table.ops td.tgt{font-weight:700; color:var(--navy); background:#F7F9FC;}
+  table.ops td.over{color:var(--warn); font-weight:700;}
+  @media (max-width:520px){
+    table.ops{font-size:11.5px;}
+    table.ops th, table.ops td{padding:6px 6px;}
+  }
+
+  /* ── 보고서 생성 모달 ── */
+  .modal-bg{
+    display:none; position:fixed; inset:0; background:rgba(20,30,45,.45); z-index:50;
+    align-items:flex-start; justify-content:center; padding:24px 12px; overflow-y:auto;
+  }
+  .modal-bg.on{display:flex;}
+  .modal{
+    background:#fff; border-radius:14px; width:100%; max-width:460px;
+    padding:18px 16px 16px; box-shadow:0 8px 30px rgba(20,30,45,.25);
+  }
+  .modal h3{font-size:15px; color:var(--navy); margin-bottom:12px;}
+  .modal label{font-size:12px; font-weight:700; color:var(--txt); display:block; margin:10px 0 4px;}
+  .modal input[type=date], .modal textarea{
+    width:100%; border:1px solid var(--line); border-radius:8px;
+    padding:8px 9px; font-size:13px; font-family:inherit; color:var(--txt);
+  }
+  .modal textarea{min-height:52px; resize:vertical;}
+  .modal .hint{font-size:10.5px; color:var(--txt-sub); margin-top:3px; line-height:1.5;}
+  .modal .m-btns{display:flex; gap:8px; margin-top:16px;}
+  .modal .m-btns button{
+    flex:1; border:none; cursor:pointer; font-weight:700; font-size:13.5px;
+    padding:11px 0; border-radius:9px;
+  }
+  .m-make{background:var(--navy); color:#fff;}
+  .m-cancel{background:#EDF0F5; color:var(--txt);}
 </style>
 </head>
 <body>
@@ -86,12 +135,18 @@
   <header class="top">
     <div class="ttl">
       <h1>HLB에너지 월별 운영 대시보드</h1>
-      <div class="sub">기초자료 : Google Sheets <b>「보고서」</b> 시트 &nbsp;|&nbsp; 기준 : <b id="period">2026년 3월~5월</b></div>
+      <div class="sub">기초자료 : Google Sheets <b>「보고서」</b> 시트(주간점검) &nbsp;|&nbsp; 기준 : <b id="period">2026년 3월~6월</b></div>
     </div>
-    <button class="btn-refresh" id="refreshBtn" title="구글시트 최신값 다시 불러오기">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-      새로고침
-    </button>
+    <div class="btns">
+      <button class="btn-report" id="reportBtn" title="격주 경영현황 보고서(.docx) 생성">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        보고서 생성
+      </button>
+      <button class="btn-refresh" id="refreshBtn" title="구글시트 최신값 다시 불러오기">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        새로고침
+      </button>
+    </div>
   </header>
   <div id="status"></div>
 
@@ -99,36 +154,69 @@
   <section class="card">
     <h2><span class="no">1</span> 매출현황</h2>
     <div class="chart-box h-rev"><canvas id="chartRev"></canvas></div>
-    <div class="note">단기목표 <span class="tg">월 매출 1,000백만원 초과</span> (점선 기준선)</div>
+    <div class="note">단기목표 <span class="tg" id="tgRev">월 매출 1,029백만원</span> (점선 기준선) · 옅은 구간 = 당월 예상치<span id="projInfoRev"></span></div>
   </section>
 
   <!-- 2. 가동지표 -->
   <section class="card">
     <h2><span class="no">2</span> 가동지표</h2>
     <div class="chart-box h-std"><canvas id="chartOps"></canvas></div>
-    <div class="note">단기목표 <span class="tg">평균소각단가 15만원</span> (점선 기준선)</div>
+    <div class="note">단기목표 <span class="tg" id="tgOps">평균매입단가 15만원</span> (점선 기준선)</div>
   </section>
 
   <!-- 3. 스팀지표 -->
   <section class="card">
     <h2><span class="no">3</span> 스팀지표</h2>
     <div class="chart-box h-std"><canvas id="chartStm"></canvas></div>
-    <div class="note">단기목표 <span class="tg">시간당 생산량 23 ton/h</span> (점선 기준선)</div>
+    <div class="note">단기목표 <span class="tg" id="tgStm">시간당 생산량 23 ton/h</span> (점선 기준선) · 옅은 구간 = 당월 예상치<span id="projInfoStm"></span></div>
+  </section>
+
+  <!-- 4. 운영지표 (바닥재·약품비) -->
+  <section class="card">
+    <h2><span class="no">4</span> 운영지표 <span style="font-weight:600;font-size:12px;color:var(--txt-sub);">바닥재·약품비</span></h2>
+    <div class="tbl-scroll"><table class="ops" id="opsTable"></table></div>
+    <div class="note" id="opsNote">목표 초과 시 <span class="tg">적색</span> 표기 · 목표는 시트 목표열 자동 반영</div>
   </section>
 
   <footer>
     최종 갱신 : <span id="updated">-</span><br>
-    ※ 새로고침이 작동하려면 원본 시트가 "링크가 있는 모든 사용자 보기 가능"으로 공유돼 있어야 합니다. 실패 시 마지막 값이 유지됩니다.
+    ※ 새로고침이 작동하려면 원본 시트가 "링크가 있는 모든 사용자 보기 가능"으로 공유돼 있어야 합니다. 실패 시 마지막 값이 유지됩니다.<br>
+    ※ 예상치(월환산) = 당월 실적 ÷ 경과일수 × 당월 총일수. 경과일수는 시트 「기준일」 행(예: 6/6) 우선, 없으면 자동 추정.
   </footer>
+</div>
+
+<!-- 보고서 생성 모달 -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>격주 경영현황 보고서 생성 (.docx)</h3>
+    <label for="repDate">기준일자</label>
+    <input type="date" id="repDate">
+    <div class="hint">기준일자의 월은 부분 실적(월환산 적용), 그 이전 월은 확정 실적으로 처리됩니다. 시트 데이터가 기준일자까지 입력돼 있는지 먼저 확인하세요.</div>
+    <label for="repHps">HPS 협상 경과</label>
+    <textarea id="repHps" placeholder="협상 일자·주요 쟁점·합의/미합의 사항·다음 단계"></textarea>
+    <label for="repOne">1회성 비용 발생</label>
+    <textarea id="repOne" placeholder="항목·금액·발생 사유·손익 영향"></textarea>
+    <label for="repEtc">기타 특이사항</label>
+    <textarea id="repEtc" placeholder="설비 이슈·인력·규제·안전 등"></textarea>
+    <div class="m-btns">
+      <button class="m-cancel" id="repCancel">취소</button>
+      <button class="m-make" id="repMake">보고서 생성</button>
+    </div>
+  </div>
 </div>
 
 <script>
 Chart.register(ChartDataLabels);
 
-const SHEET_ID = '1Eym9hG0_hfPIG74O3UaZTb1_sE-Stasl';
-const GID = '856949396';
+// ── 데이터 소스: HLB에너지_주간점검사항 「보고서」 시트 ──
+const SHEET_ID = '1tmt9y0BFKslJVQaARJKDNFpBUBppcGXG';
+const GID = '1351741353';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
-const MONTH_COLS = [3,4,5,6,7,8,9,10,11,12]; // 보고서 시트 월 컬럼 순서
+// 시트 열 구조: [0]=빈칸, [1]=구분(라벨), [2]=목표, [3..11]='26.03 ~ '26.11
+const MONTH_COLS = [3,4,5,6,7,8,9,10,11];
+const TGT_COL = 2;
+const VAL_COL0 = 3;
+const YEAR = 2026;
 
 // 색상
 const C = getComputedStyle(document.documentElement);
@@ -137,19 +225,45 @@ const BLUE_L = C.getPropertyValue('--blue-l').trim();
 const BLUE_XL = C.getPropertyValue('--blue-xl').trim();
 const GRAY = C.getPropertyValue('--gray').trim();
 const WARN = C.getPropertyValue('--warn').trim();
+const PROJ_FILL = 'rgba(169,197,234,0.4)';   // 예상치 옅은 음영
+const PROJ_BORDER = 'rgba(91,143,214,0.7)';
 
-// ── 임베드 기본값 (보고서 시트 요약 블록, 새로고침 실패 시 fallback) ──
-let DATA = {
-  '소각매출':     [288,335,359,0,0,0,0,0,0,0],
-  '스팀매출':     [421,448,447,0,0,0,0,0,0,0],
-  '기타매출':     [14,17,13,0,0,0,0,0,0,0],
-  '매출':         [723,801,818,0,0,0,0,0,0,0],
-  '가동일수':     [26,28,23,6,0,0,0,0,0,0],
-  '일평균소각량': [128,121,141,132,0,0,0,0,0,0],
-  '평균소각단가': [83365,100823,102844,0,0,0,0,0,0,0],
-  '생산총량':     [11970,12756,12725,0,0,0,0,0,0,0],
-  '시간당평균':   [19.2,19.0,23.1,0.0,0,0,0,0,0,0]
+// 라벨(공백제거) → 내부키, 스케일(원→백만원)
+const LABEL_MAP = {
+  '매출지표':'매출', '폐기물소각':'소각매출', '스팀생산':'스팀매출',
+  '50%이상가동일':'가동일수', '일평균소각량':'일평균소각량',
+  '평균매입단가':'평균매입단가', '총스팀판매량':'총스팀판매량',
+  '시간당생산량':'시간당생산량', '바닥재발생비율':'바닥재발생비율',
+  '톤당약품비':'톤당약품비', '총일수':'총일수', '매입톤':'매입톤'
 };
+const SCALE = { '매출':1e-6, '소각매출':1e-6, '스팀매출':1e-6 };
+
+// ── 임베드 기본값 (「보고서」 시트, 기준 6/6 — 새로고침 실패 시 fallback) ──
+let DATA = {
+  '매출':           [716.1,797.1,816.0,178.6,0,0,0,0,0],
+  '소각매출':       [299.1,348.7,370.0,83.9,0,0,0,0,0],
+  '스팀매출':       [417.0,448.4,446.0,94.7,0,0,0,0,0],
+  '가동일수':       [26,28,27,6,0,0,0,0,0],
+  '일평균소각량':   [128,121,120,132,0,0,0,0,0],
+  '평균매입단가':   [86614,105050,106101,109023,0,0,0,0,0],
+  '총스팀판매량':   [11845,12753,12705,2704,0,0,0,0,0],
+  '시간당생산량':   [19.0,19.0,19.6,18.8,0,0,0,0,0],
+  '바닥재발생비율': [31,30,33,33,0,0,0,0,0],
+  '톤당약품비':     [22950,21871,25977,20483,0,0,0,0,0],
+  '총일수':         [31,30,31,30,31,31,30,31,15],
+  '매입톤':         [3454,3320,3487,769,0,0,0,0,0]
+};
+
+// 목표 (시트 목표열 fallback — 새로고침 시 시트값으로 대체)
+let TARGETS = {
+  '매출':1029.0, '소각매출':528.0, '스팀매출':501.0,
+  '가동일수':28, '일평균소각량':115, '평균매입단가':150000,
+  '총스팀판매량':15000, '시간당생산량':23.0,
+  '바닥재발생비율':20, '톤당약품비':20000, '매입톤':3520
+};
+
+// 시트 「기준일」 행 (선택, 예: "6/6") — 있으면 월환산 경과일수의 기준
+let BASEDAY = null; // {m, d}
 
 let charts = {};
 
@@ -157,17 +271,35 @@ let charts = {};
 const num = s => { const n = parseFloat(String(s).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; };
 const fmt = n => n.toLocaleString('ko-KR');
 const fmt1 = n => n.toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1});
+function daysInMonth(y,m){ return new Date(y,m,0).getDate(); }
 
-// 차트 x축 = 3월~12월 전체 (데이터 없는 월은 공란)
 function chartIdx(){ return MONTH_COLS.map((_,i)=>i); }
-// KPI 카드 = 실제 데이터가 있는 월(매출 합계 > 0, 진행중 당월 제외 → 직전월까지)
 function dataIdx(){
   const idx=[];
   DATA['매출'].forEach((v,i)=>{ if(v>0) idx.push(i); });
   return idx.length?idx:[0,1,2];
 }
-// 0/빈값 → null (막대·점·라벨 모두 비움)
 const nz = v => (v && v!==0) ? v : null;
+
+// ── 진행중 월(부분월) 판정 + 경과일수 ──
+// 우선순위: ①시트 기준일 행 ②당월=현재월이면 오늘 일자 ③50%이상 가동일(추정)
+function partialInfo(){
+  let pi=-1;
+  MONTH_COLS.forEach((m,i)=>{ if((DATA['매출'][i]||0)>0 || (DATA['가동일수'][i]||0)>0) pi=i; });
+  if(pi<0) return null;
+  const m=MONTH_COLS[pi];
+  let day=null, src='';
+  if(BASEDAY && BASEDAY.m===m && BASEDAY.d>0){ day=BASEDAY.d; src=`기준일 ${m}/${BASEDAY.d}`; }
+  else{
+    const now=new Date();
+    if(now.getFullYear()===YEAR && now.getMonth()+1===m){ day=now.getDate(); src=`금일 기준 ${m}/${day}`; }
+    else if((DATA['가동일수'][pi]||0)>0){ day=DATA['가동일수'][pi]; src=`가동일 추정 ${day}일`; }
+  }
+  if(!day) return null;
+  const dim=daysInMonth(YEAR,m);
+  if(day>=dim) return null; // 사실상 월 마감
+  return {pi,m,day,dim,src};
+}
 
 // ── CSV 파서 (따옴표 내 콤마 처리) ──
 function parseCSV(text){
@@ -189,39 +321,46 @@ function parseCSV(text){
   return rows;
 }
 
-// CSV → DATA (각 라벨 첫 출현행 사용, 값은 컬럼 인덱스 2..11)
+// CSV → {data, targets, baseday}
 function csvToData(text){
   const rows=parseCSV(text);
-  const labels=Object.keys(DATA);
-  const out={};
-  for(const lb of labels){
-    for(const r of rows){
-      if((r[1]||'').trim()===lb){
-        out[lb]=MONTH_COLS.map((m,k)=>num(r[2+k]));
-        break;
-      }
+  const out={}, tg={};
+  let baseday=null;
+  for(const r of rows){
+    const lb=(r[1]||'').replace(/\s/g,'');
+    if(lb==='기준일'){
+      const mm=String(r[TGT_COL]||'').match(/(\d{1,2})\s*[\/월.\-]\s*(\d{1,2})/);
+      if(mm) baseday={m:+mm[1], d:+mm[2]};
+      continue;
     }
+    const key=LABEL_MAP[lb];
+    if(!key || out[key]!==undefined) continue;
+    const sc=SCALE[key]||1;
+    out[key]=MONTH_COLS.map((m,k)=>{
+      let v=num(r[VAL_COL0+k])*sc;
+      return sc!==1 ? Math.round(v*10)/10 : v;
+    });
+    const tv=num(r[TGT_COL])*sc;
+    if(tv>0) tg[key]= sc!==1 ? Math.round(tv*10)/10 : tv;
   }
-  // 매출 합계 라벨이 '매출' 한 단어라 다른 셀과 충돌 없는지 확인용 — 누락 시 합산 대체
   if(!out['매출'] && out['소각매출']){
-    out['매출']=out['소각매출'].map((v,i)=>v+(out['스팀매출']?.[i]||0)+(out['기타매출']?.[i]||0));
+    out['매출']=out['소각매출'].map((v,i)=>Math.round((v+(out['스팀매출']?.[i]||0))*10)/10);
   }
   if(Object.keys(out).length<5) throw new Error('시트 형식 불일치');
-  return out;
+  return { data:{...DATA, ...out}, targets:{...TARGETS, ...tg}, baseday };
 }
 
 // ── 기간 표시 ──
 function updatePeriod(idx){
   document.getElementById('period').textContent =
-    `2026년 ${MONTH_COLS[idx[0]]}월~${MONTH_COLS[idx[idx.length-1]]}월`;
+    `${YEAR}년 ${MONTH_COLS[idx[0]]}월~${MONTH_COLS[idx[idx.length-1]]}월`;
 }
 
-// ── 그래프 상단 2줄 박스(월 + 값) : 슬롯 폭에 맞춰 자동 축소(모바일 겹침 방지) ──
+// ── 그래프 상단 2줄 박스(월 + 값) ──
 function drawTopBox(ctx,cx,topY,lines,maxW){
-  const compact = maxW < 70;                 // 슬롯이 좁으면 짧은 라벨 사용
+  const compact = maxW < 70;
   let [l1,l2] = compact ? lines.short : lines.full;
   let f2 = compact ? 11 : 12, f1 = compact ? 8.5 : 9.5;
-  // 값(아랫줄) 폰트를 슬롯 폭에 맞춰 축소
   ctx.font=`700 ${f2}px "맑은 고딕",sans-serif`;
   while(f2>8 && ctx.measureText(l2).width+8 > maxW){ f2-=0.5; ctx.font=`700 ${f2}px "맑은 고딕",sans-serif`; }
   const w2=ctx.measureText(l2).width;
@@ -246,29 +385,30 @@ function drawTopBox(ctx,cx,topY,lines,maxW){
   ctx.fillText(l2, cx, y+(compact?23:26));
   ctx.restore();
 }
-// 상단에 박스를 고정 표기하는 플러그인 (linesFn(di) → {full:[..],short:[..]} 또는 null)
 function topBoxPlugin(id,linesFn,barIdx=0){
   return {
     id,
     afterDatasetsDraw(chart){
       const ctx=chart.ctx, area=chart.chartArea;
       const meta=chart.getDatasetMeta(barIdx);
-      const slotW=(area.right-area.left)/chart.data.labels.length; // 1개월 슬롯 폭
+      const slotW=(area.right-area.left)/chart.data.labels.length;
       chart.data.labels.forEach((_,di)=>{
         const ln=linesFn(di); if(!ln) return;
         const pt=meta.data[di]; if(!pt) return;
-        drawTopBox(ctx, pt.x, area.top+3, ln, slotW*0.96);         // 박스가 슬롯을 넘지 않음 → 겹침 없음
+        drawTopBox(ctx, pt.x, area.top+3, ln, slotW*0.96);
       });
     }
   };
 }
 
 // ── 공통 플러그인: 목표 기준선 ──
-function targetLine(value,label,axis='y'){
+function targetLine(valueFn,labelFn,axis='y'){
   return {
-    id:'tg_'+label,
+    id:'tg_'+axis+'_'+Math.random().toString(36).slice(2,6),
     afterDatasetsDraw(chart){
-      const sc=chart.scales[axis]; if(!sc) return;
+      const value=typeof valueFn==='function'?valueFn():valueFn;
+      const label=typeof labelFn==='function'?labelFn():labelFn;
+      const sc=chart.scales[axis]; if(!sc||!value) return;
       const yp=sc.getPixelForValue(value);
       const {left,right}=chart.chartArea;
       const ctx=chart.ctx; ctx.save();
@@ -282,7 +422,7 @@ function targetLine(value,label,axis='y'){
   };
 }
 
-// ── 축 단위를 좌/우 상단에 표기(세로 축제목 제거 → 좌우 폭 확보) ──
+// ── 축 단위를 좌/우 상단에 표기 ──
 function axisUnit(leftText,rightText){
   return {
     id:'axisUnit',
@@ -297,30 +437,88 @@ function axisUnit(leftText,rightText){
   };
 }
 
+// ── 4. 운영지표 표 렌더 (바닥재·약품비) ──
+function renderOpsTable(){
+  const tbl=document.getElementById('opsTable');
+  const idx=[];
+  MONTH_COLS.forEach((m,i)=>{ if((DATA['매출'][i]||0)>0 || (DATA['가동일수'][i]||0)>0) idx.push(i); });
+  const show=idx.length?idx:[0,1,2];
+  const rows=[
+    {key:'바닥재발생비율', label:'바닥재 발생비율', unit:'%',
+     fmtV:v=>v?Math.round(v)+'%':'-', over:v=>v>TARGETS['바닥재발생비율'],
+     tgt:()=>Math.round(TARGETS['바닥재발생비율'])+'% 이하'},
+    {key:'톤당약품비', label:'톤당 약품비', unit:'원/톤',
+     fmtV:v=>v?fmt(Math.round(v)):'-', over:v=>v>TARGETS['톤당약품비'],
+     tgt:()=>fmt(Math.round(TARGETS['톤당약품비']))+' 이하'}
+  ];
+  let html='<thead><tr><th class="lb">구분</th>';
+  show.forEach(i=>{ html+=`<th>${MONTH_COLS[i]}월</th>`; });
+  html+='<th>목표(~9월)</th></tr></thead><tbody>';
+  for(const r of rows){
+    html+=`<tr><td class="lb">${r.label}<span style="font-weight:400;color:var(--txt-sub);font-size:10.5px;"> (${r.unit})</span></td>`;
+    show.forEach(i=>{
+      const v=DATA[r.key]?DATA[r.key][i]:0;
+      const cls=(v&&r.over(v))?' class="over"':'';
+      html+=`<td${cls}>${r.fmtV(v)}</td>`;
+    });
+    html+=`<td class="tgt">${r.tgt()}</td></tr>`;
+  }
+  html+='</tbody>';
+  tbl.innerHTML=html;
+}
+
+// ── 목표 문구 갱신 ──
+function updateTargetNotes(pinfo){
+  document.getElementById('tgRev').textContent=`월 매출 ${fmt(Math.round(TARGETS['매출']))}백만원`;
+  document.getElementById('tgOps').textContent=`평균매입단가 ${fmt1(TARGETS['평균매입단가']/10000)}만원`;
+  document.getElementById('tgStm').textContent=`시간당 생산량 ${fmt1(TARGETS['시간당생산량'])} ton/h`;
+  const info=pinfo?` (${pinfo.src}, ${pinfo.day}일 → ${pinfo.dim}일 환산)`:'';
+  document.getElementById('projInfoRev').textContent=info;
+  document.getElementById('projInfoStm').textContent=info;
+}
+
 // ── 차트 렌더 ──
 function render(){
-  const cidx=chartIdx();                       // 3월~12월 전체
+  const cidx=chartIdx();
   const labels=cidx.map(i=>MONTH_COLS[i]+'월');
-  updatePeriod(dataIdx());                       // 기간은 데이터 있는 월 기준
+  updatePeriod(dataIdx());
+  const pinfo=partialInfo();
+  updateTargetNotes(pinfo);
   Object.values(charts).forEach(c=>c.destroy());
 
-  // 모바일(좁은 폭)에서 폰트 축소 + 겹치는 라벨 자동 숨김
   const dlFont = c => ({weight:'700', size: c.chart.width<520 ? 9 : 11});
   const dlBase={color:'#fff',font:dlFont,display:'auto'};
-  const barInside={...dlBase,anchor:'center',align:'center'}; // 막대 안쪽 라벨
+  const barInside={...dlBase,anchor:'center',align:'center'};
 
-  // 상단 박스용 라인 생성기
-  const revBox = di => { const t=(DATA['소각매출'][di]||0)+(DATA['스팀매출'][di]||0)+(DATA['기타매출'][di]||0);
+  // ── 예상치(월환산) 계산: 부분월만 값 존재, 나머지 null ──
+  const projArr=(key)=>{
+    const arr=cidx.map(()=>null);
+    if(pinfo){
+      const v=DATA[key][pinfo.pi]||0;
+      if(v>0){
+        const proj=v/pinfo.day*pinfo.dim;
+        arr[pinfo.pi]=Math.max(proj-v,0);   // 실적 위에 얹는 잔여분
+        arr._total=proj;                     // 라벨용 전체 예상치
+      }
+    }
+    return arr;
+  };
+  const revProj=projArr('매출');
+  const stmProj=projArr('총스팀판매량');
+
+  const revBox = di => { const t=(DATA['소각매출'][di]||0)+(DATA['스팀매출'][di]||0);
                          return t>0 ? {full:[`${MONTH_COLS[di]}월 매출`,`${fmt(Math.round(t))} 백만`], short:[`${MONTH_COLS[di]}월`,`${fmt(Math.round(t))}`]} : null; };
-  const dayBox = di => DATA['매출'][di]>0 ? {full:[`${MONTH_COLS[di]}월 가동일수`,`${DATA['가동일수'][di]} 일`], short:[`${MONTH_COLS[di]}월`,`${DATA['가동일수'][di]}일`]} : null;
+  const dayBox = di => DATA['가동일수'][di]>0 ? {full:[`${MONTH_COLS[di]}월 가동일(50%↑)`,`${DATA['가동일수'][di]} 일`], short:[`${MONTH_COLS[di]}월`,`${DATA['가동일수'][di]}일`]} : null;
 
-  // 1. 매출현황 (누적막대 + 목표선 1000, 전체합계는 목표선 위)
+  // 1. 매출현황 (누적막대 + 당월 예상치 음영)
   charts.rev=new Chart(document.getElementById('chartRev'),{
     type:'bar',
     data:{labels,datasets:[
-      {label:'소각매출',data:cidx.map(i=>nz(DATA['소각매출'][i])),backgroundColor:BLUE,stack:'s'},
-      {label:'스팀매출',data:cidx.map(i=>nz(DATA['스팀매출'][i])),backgroundColor:BLUE_L,stack:'s'},
-      {label:'기타매출',data:cidx.map(i=>nz(DATA['기타매출'][i])),backgroundColor:BLUE_XL,stack:'s'}
+      {label:'폐기물소각',data:cidx.map(i=>nz(DATA['소각매출'][i])),backgroundColor:BLUE,stack:'s'},
+      {label:'스팀생산',data:cidx.map(i=>nz(DATA['스팀매출'][i])),backgroundColor:BLUE_L,stack:'s'},
+      {label:'예상치(월환산)',data:revProj,backgroundColor:PROJ_FILL,borderColor:PROJ_BORDER,borderWidth:1,stack:'s',
+       datalabels:{anchor:'end',align:'top',color:'#5B7BA6',font:dlFont,display:true,
+                   formatter:v=>v?`예상 ${fmt(Math.round(revProj._total))}`:''}}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
@@ -331,19 +529,20 @@ function render(){
       },
       plugins:{
         legend:{position:'bottom',labels:{boxWidth:12,font:{size:11},padding:10}},
-        datalabels:{...barInside,formatter:v=>(v&&v>20)?fmt(v):'',color:c=>c.datasetIndex===2?'#33455F':'#fff'},
-        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)+' 백만원'}}
+        datalabels:{...barInside,formatter:v=>(v&&v>20)?fmt(Math.round(v)):'',color:'#fff'},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt1(c.raw)+' 백만원'}}
       }
     },
-    plugins:[topBoxPlugin('revBox',revBox),targetLine(1000,'목표 1,000','y')]
+    plugins:[topBoxPlugin('revBox',revBox),
+             targetLine(()=>TARGETS['매출'],()=>`목표 ${fmt(Math.round(TARGETS['매출']))}`,'y')]
   });
 
-  // 2. 가동지표 (막대=일평균소각량 ton[안쪽표기], 꺾은선=평균소각단가 만원[막대 위], 목표선 15만원)
+  // 2. 가동지표 (막대=일평균소각량, 꺾은선=평균매입단가 만원)
   charts.ops=new Chart(document.getElementById('chartOps'),{
     data:{labels,datasets:[
       {type:'bar',label:'일평균소각량(ton)',data:cidx.map(i=>nz(DATA['일평균소각량'][i])),backgroundColor:BLUE_L,yAxisID:'y',
        order:2,datalabels:{...barInside,color:'#fff',display:true,formatter:v=>v?fmt(v):''}},
-      {type:'line',label:'평균소각단가(만원)',data:cidx.map(i=>nz(DATA['평균소각단가'][i]/10000)),yAxisID:'y1',
+      {type:'line',label:'평균매입단가(만원)',data:cidx.map(i=>nz(DATA['평균매입단가'][i]/10000)),yAxisID:'y1',
        borderColor:WARN,backgroundColor:WARN,borderWidth:2.5,tension:.3,pointRadius:4,pointBackgroundColor:'#fff',pointBorderWidth:2,spanGaps:false,
        order:1,datalabels:{...dlBase,color:WARN,anchor:'end',align:'top',display:true,formatter:v=>v?fmt1(v):''}}
     ]},
@@ -351,7 +550,6 @@ function render(){
       responsive:true,maintainAspectRatio:false,layout:{padding:{top:16}},
       scales:{
         x:{grid:{display:false},ticks:{font:{size:10}}},
-        // 소각량 축 최대값을 크게(360) → 막대를 낮춰 단가 꺾은선이 막대 위에 오도록 / 축제목은 상단 단위로 대체
         y:{position:'left',beginAtZero:true,suggestedMax:360,grid:{color:'#EEF1F5'},ticks:{font:{size:10}}},
         y1:{position:'right',beginAtZero:true,suggestedMax:20,grid:{drawOnChartArea:false},ticks:{font:{size:10}}}
       },
@@ -360,31 +558,36 @@ function render(){
         tooltip:{}
       }
     },
-    plugins:[axisUnit('ton','만원'),topBoxPlugin('dayBox',dayBox),targetLine(15,'목표 15만원','y1')]
+    plugins:[axisUnit('ton','만원'),topBoxPlugin('dayBox',dayBox),
+             targetLine(()=>TARGETS['평균매입단가']/10000,()=>`목표 ${fmt1(TARGETS['평균매입단가']/10000)}만원`,'y1')]
   });
 
-  // 3. 스팀지표 (막대=생산총량, 꺾은선=시간당평균 → 막대 축을 키워 선이 막대 위에 오도록)
+  // 3. 스팀지표 (막대=총스팀 판매량 + 당월 예상치 음영, 꺾은선=시간당 생산량)
   charts.stm=new Chart(document.getElementById('chartStm'),{
     data:{labels,datasets:[
-      {type:'bar',label:'생산총량(ton)',data:cidx.map(i=>nz(DATA['생산총량'][i])),backgroundColor:BLUE,yAxisID:'y',
+      {type:'bar',label:'총스팀 판매량(ton)',data:cidx.map(i=>nz(DATA['총스팀판매량'][i])),backgroundColor:BLUE,yAxisID:'y',stack:'s',
        order:2,datalabels:{...barInside,color:'#fff',display:true,rotation:c=>c.chart.width<520?270:0,formatter:v=>v?fmt(v):''}},
-      {type:'line',label:'시간당 평균(ton/h)',data:cidx.map(i=>nz(DATA['시간당평균'][i])),yAxisID:'y1',
+      {type:'bar',label:'예상치(월환산)',data:stmProj,backgroundColor:PROJ_FILL,borderColor:PROJ_BORDER,borderWidth:1,yAxisID:'y',stack:'s',
+       order:2,datalabels:{anchor:'end',align:'top',color:'#5B7BA6',font:dlFont,display:true,
+                           formatter:v=>v?`예상 ${fmt(Math.round(stmProj._total))}`:''}},
+      {type:'line',label:'시간당 생산량(ton/h)',data:cidx.map(i=>nz(DATA['시간당생산량'][i])),yAxisID:'y1',
        borderColor:WARN,backgroundColor:WARN,borderWidth:2.5,tension:.3,pointRadius:4,pointBackgroundColor:'#fff',pointBorderWidth:2,spanGaps:false,
        order:1,datalabels:{...dlBase,color:WARN,anchor:'end',align:'top',display:true,formatter:v=>v?fmt1(v):''}}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,layout:{padding:{top:16}},
       scales:{
-        x:{grid:{display:false},ticks:{font:{size:10}}},
-        // 막대 축 최대값을 크게(22,000) → 막대 높이를 낮춰 시간당평균 선이 위에 오도록 / 축제목은 상단 단위로 대체
-        y:{position:'left',beginAtZero:true,suggestedMax:22000,grid:{color:'#EEF1F5'},ticks:{font:{size:10}}},
-        // 시간당 축 최대값을 작게(26) → 선이 차트 상단으로 올라오도록 (목표 23도 표기 가능)
+        x:{stacked:true,grid:{display:false},ticks:{font:{size:10}}},
+        y:{position:'left',stacked:true,beginAtZero:true,suggestedMax:22000,grid:{color:'#EEF1F5'},ticks:{font:{size:10}}},
         y1:{position:'right',beginAtZero:true,suggestedMax:26,grid:{drawOnChartArea:false},ticks:{font:{size:10}}}
       },
       plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11},padding:10}},tooltip:{}}
     },
-    plugins:[axisUnit('ton','ton/h'),targetLine(23,'목표 23 ton/h','y1')]
+    plugins:[axisUnit('ton','ton/h'),
+             targetLine(()=>TARGETS['시간당생산량'],()=>`목표 ${fmt1(TARGETS['시간당생산량'])} ton/h`,'y1')]
   });
+
+  renderOpsTable();
 }
 
 function stamp(){
@@ -404,7 +607,8 @@ async function refresh(){
     if(!res.ok) throw new Error('HTTP '+res.status);
     const text=await res.text();
     if(text.trim().startsWith('<')) throw new Error('접근 권한 없음(비공개 시트)');
-    DATA=csvToData(text);
+    const parsed=csvToData(text);
+    DATA=parsed.data; TARGETS=parsed.targets; BASEDAY=parsed.baseday;
     render(); stamp();
     st.className='ok'; st.textContent='최신 데이터로 갱신되었습니다.';
   }catch(e){
@@ -414,6 +618,160 @@ async function refresh(){
     btn.classList.remove('spin');
   }
 }
+
+// ═════════════════ 보고서 생성 (.docx) ═════════════════
+const modalBg=document.getElementById('modalBg');
+document.getElementById('reportBtn').addEventListener('click',()=>{
+  const p=partialInfo();
+  let def;
+  if(p && BASEDAY){ def=`${YEAR}-${String(p.m).padStart(2,'0')}-${String(p.day).padStart(2,'0')}`; }
+  else{ const d=new Date(); def=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  document.getElementById('repDate').value=def;
+  modalBg.classList.add('on');
+});
+document.getElementById('repCancel').addEventListener('click',()=>modalBg.classList.remove('on'));
+modalBg.addEventListener('click',e=>{ if(e.target===modalBg) modalBg.classList.remove('on'); });
+
+// 보고서용 데이터 조립: 확정월(기준월 이전, 최근 3개) + 부분월(기준월) + 월환산 + 목표
+function buildReportModel(baseDate){
+  const y=baseDate.getFullYear(), m=baseDate.getMonth()+1, day=baseDate.getDate();
+  const idxOf=mm=>MONTH_COLS.indexOf(mm);
+  const fullIdx=MONTH_COLS.filter(mm=>mm<m && idxOf(mm)>=0 && (DATA['매출'][idxOf(mm)]||0)>0).slice(-3).map(idxOf);
+  const pi=idxOf(m);
+  const hasPartial=pi>=0 && ((DATA['매출'][pi]||0)>0 || (DATA['가동일수'][pi]||0)>0);
+  const conv=v=>(hasPartial && v && day>0) ? v/day*daysInMonth(y,m) : null;
+
+  const val=(key,i)=>DATA[key]?(DATA[key][i]||0):0;
+  const D='-';
+  const r1=(v,d=1)=>v?v.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d}):D;
+  const r0=v=>v?fmt(Math.round(v)):D;
+  const pct=v=>v?Math.round(v)+'%':D;
+
+  function row(label,key,{f=r0,convert=false,target=null}={}){
+    const cells=fullIdx.map(i=>f(val(key,i)));
+    const pv=hasPartial?val(key,pi):0;
+    cells.push(hasPartial?f(pv):D);
+    cells.push(convert?f(conv(pv)):D);
+    cells.push(target!==null&&target!==undefined?f(target):D);
+    return [label,...cells];
+  }
+
+  const header=['구분',
+    ...fullIdx.map(i=>`'${String(y).slice(2)}.${String(MONTH_COLS[i]).padStart(2,'0')}`),
+    hasPartial?`${m}/1~${m}/${day}`:'당월', '월환산**', '목표(~9월)'];
+
+  const rev=[
+    row('매출 합계 (백만원)','매출',{f:r1,convert:true,target:TARGETS['매출']}),
+    row('  폐기물소각 (백만원)','소각매출',{f:r1,convert:true,target:TARGETS['소각매출']}),
+    row('  스팀생산 (백만원)','스팀매출',{f:r1,convert:true,target:TARGETS['스팀매출']}),
+    row('총스팀 판매량 (톤)','총스팀판매량',{convert:true,target:TARGETS['총스팀판매량']}),
+    row('시간당 생산량 (톤/hr)','시간당생산량',{f:v=>r1(v),target:TARGETS['시간당생산량']}),
+    row('평균매입단가 (원/톤)','평균매입단가',{target:TARGETS['평균매입단가']})
+  ];
+  const ops=[
+    row('50% 이상 가동일 (일)','가동일수',{target:TARGETS['가동일수']}),
+    row('일 평균 소각량 (톤/일)','일평균소각량',{target:TARGETS['일평균소각량']}),
+    row('바닥재 발생비율 (%)','바닥재발생비율',{f:pct,target:TARGETS['바닥재발생비율']}),
+    row('톤당 약품비 (원/톤)','톤당약품비',{target:TARGETS['톤당약품비']})
+  ];
+  return {y,m,day,header,rev,ops,hasPartial};
+}
+
+async function makeReport(){
+  const dstr=document.getElementById('repDate').value;
+  if(!dstr){ alert('기준일자를 선택하세요.'); return; }
+  const baseDate=new Date(dstr+'T00:00:00');
+  const model=buildReportModel(baseDate);
+  const hps=document.getElementById('repHps').value.trim();
+  const one=document.getElementById('repOne').value.trim();
+  const etc=document.getElementById('repEtc').value.trim();
+
+  const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,
+         AlignmentType,BorderStyle,WidthType,ShadingType,VerticalAlign}=docx;
+
+  const FONT='맑은 고딕', NAVY='1F3864', GREY='595959';
+  const bd={style:BorderStyle.SINGLE,size:4,color:'BFBFBF'};
+  const borders={top:bd,bottom:bd,left:bd,right:bd};
+  const CW=9354;
+  const nCols=model.header.length;
+  const labW=2154, numW=Math.floor((CW-labW)/(nCols-1));
+  const COLS=[labW,...Array(nCols-2).fill(numW)];
+  COLS.push(CW-COLS.reduce((a,b)=>a+b,0));
+
+  function cell(text,{fill,bold=false,color='000000',align=AlignmentType.RIGHT,width,size=18}={}){
+    return new TableCell({
+      borders,width:{size:width,type:WidthType.DXA},
+      shading:fill?{fill,type:ShadingType.CLEAR}:undefined,
+      verticalAlign:VerticalAlign.CENTER,
+      margins:{top:40,bottom:40,left:100,right:100},
+      children:[new Paragraph({alignment:align,children:[new TextRun({text,bold,color,size,font:FONT})]})]
+    });
+  }
+  function makeTable(header,rows){
+    const hr=new TableRow({children:header.map((t,i)=>cell(t,{fill:NAVY,bold:true,color:'FFFFFF',align:AlignmentType.CENTER,width:COLS[i]}))});
+    const drs=rows.map(r=>new TableRow({children:[
+      cell(r[0],{bold:true,align:AlignmentType.LEFT,width:COLS[0]}),
+      ...r.slice(1).map((v,i)=>cell(String(v),{width:COLS[i+1]}))
+    ]}));
+    return new Table({width:{size:CW,type:WidthType.DXA},columnWidths:COLS,rows:[hr,...drs]});
+  }
+  function sectionTitle(text){
+    return new Paragraph({spacing:{before:160,after:60},
+      children:[new TextRun({text,bold:true,size:21,font:FONT})]});
+  }
+  function noteBox(content,placeholder){
+    const lines=(content||'').split('\n').filter(s=>s.trim());
+    const paras=lines.length
+      ? lines.map(s=>new Paragraph({children:[new TextRun({text:s,size:19,font:FONT})]}))
+      : [new Paragraph({children:[new TextRun({text:placeholder,size:19,color:GREY,font:FONT})]}),
+         new Paragraph({children:[new TextRun({text:'',size:19,font:FONT})]})];
+    return new Table({width:{size:CW,type:WidthType.DXA},columnWidths:[CW],
+      rows:[new TableRow({children:[new TableCell({
+        borders,width:{size:CW,type:WidthType.DXA},
+        margins:{top:60,bottom:60,left:100,right:100},children:paras})]})]});
+  }
+
+  const dateFmt=`${model.y}. ${String(model.m).padStart(2,'0')}. ${String(model.day).padStart(2,'0')}.`;
+  const doc=new Document({
+    styles:{default:{document:{run:{font:FONT,size:21},paragraph:{spacing:{line:240}}}}},
+    sections:[{
+      properties:{page:{size:{width:11906,height:16838},
+        margin:{top:1134,right:1276,bottom:1000,left:1276,header:708,footer:708}}},
+      children:[
+        new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
+          children:[new TextRun({text:'HLB에너지 경영현황 격주보고',bold:true,size:32,font:FONT})]}),
+        new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},
+          border:{bottom:{style:BorderStyle.SINGLE,size:8,color:NAVY,space:4}},
+          children:[new TextRun({text:`기준일자: ${dateFmt}  |  보고대상: 그룹 경영진  |  보고주기: 격주  |  작성: HLB에너지`,size:19,color:GREY,font:FONT})]}),
+        sectionTitle('1. 매출지표'),
+        makeTable(model.header,model.rev),
+        sectionTitle('2. 운영지표'),
+        makeTable(model.header,model.ops),
+        new Paragraph({spacing:{before:60},
+          children:[new TextRun({text:`* ${model.m}/1~${model.m}/${model.day}은 기준일자까지의 부분 실적. 목표(~9월)는 '26.09까지 달성해야 하는 월간 목표 수준(시트 목표열).`,size:16,color:GREY,font:FONT})]}),
+        new Paragraph({spacing:{before:20},
+          children:[new TextRun({text:`** 월환산 = 기준일까지 실적 ÷ 경과일수(${model.day}일) × 당월 총일수(${daysInMonth(model.y,model.m)}일). 매출·스팀판매량에만 적용.`,size:16,color:GREY,font:FONT})]}),
+        sectionTitle('3. HPS 협상 경과'),
+        noteBox(hps,'(기재란 — 협상 일자·주요 쟁점·합의/미합의 사항·다음 단계)'),
+        sectionTitle('4. 1회성 비용 발생'),
+        noteBox(one,'(기재란 — 항목·금액·발생 사유·손익 영향)'),
+        sectionTitle('5. 기타 특이사항'),
+        noteBox(etc,'(기재란 — 설비 이슈·인력·규제·안전 등)')
+      ]
+    }]
+  });
+
+  const blob=await Packer.toBlob(doc);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`HLB에너지_격주보고_기준${model.y}${String(model.m).padStart(2,'0')}${String(model.day).padStart(2,'0')}.docx`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500);
+  modalBg.classList.remove('on');
+}
+document.getElementById('repMake').addEventListener('click',()=>{
+  makeReport().catch(e=>alert('보고서 생성 실패: '+e.message));
+});
 
 document.getElementById('refreshBtn').addEventListener('click',refresh);
 

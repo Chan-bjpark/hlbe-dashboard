@@ -141,7 +141,7 @@
   <header class="top">
     <div class="ttl">
       <h1>HLB에너지 월별 운영 대시보드</h1>
-      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 기초자료 : Google Sheets <b>「보고서」</b> 시트(주간점검) &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v7 (2026-07-06)</span></div>
+      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 기초자료 : Google Sheets <b>「보고서」</b> 시트(주간점검) &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v8 (2026-07-06)</span></div>
     </div>
     <div class="btns">
       <button class="btn-report" id="reportBtn" title="격주 경영현황 보고서(.docx) 생성">
@@ -167,7 +167,7 @@
   <section class="card">
     <h2><span class="no">2</span> 가동지표</h2>
     <div class="chart-box h-std"><canvas id="chartOps"></canvas></div>
-    <div class="note">단기목표 <span class="tg" id="tgOps">평균매입단가 15만원</span> (점선 기준선)</div>
+    <div class="note">단기목표 <span class="tg" id="tgOps">폐기물소각단가 15만원</span> (점선 기준선)</div>
   </section>
 
   <!-- 3. 스팀지표 -->
@@ -237,7 +237,7 @@ const PROJ_BORDER = 'rgba(91,143,214,0.7)';
 const LABEL_MAP = {
   '매출지표':'매출', '폐기물소각':'소각매출', '스팀생산':'스팀매출',
   '50%이상가동일':'가동일수', '일평균소각량':'일평균소각량',
-  '폐기물매입단가':'평균매입단가', '평균매입단가':'평균매입단가', '총스팀판매량':'총스팀판매량',
+  '폐기물매입단가':'폐기물소각단가', '폐기물소각단가':'폐기물소각단가', '총스팀판매량':'총스팀판매량',
   '시간당생산량':'시간당생산량', '바닥재발생비율':'바닥재발생비율',
   '톤당약품비':'톤당약품비', '총일수':'총일수', '매입톤':'매입톤'
 };
@@ -250,7 +250,7 @@ let DATA = {
   '스팀매출':       [417.0,448.4,446.0,94.7,0,0,0,0,0],
   '가동일수':       [26,28,27,6,0,0,0,0,0],
   '일평균소각량':   [128,121,120,132,0,0,0,0,0],
-  '평균매입단가':   [86614,104656,105632,111847,115111,0,0,0,0],
+  '폐기물소각단가':   [86614,104656,105632,111847,115111,0,0,0,0],
   '총스팀판매량':   [11845,12753,12705,2704,0,0,0,0,0],
   '시간당생산량':   [19.0,19.0,19.6,18.8,0,0,0,0,0],
   '바닥재발생비율': [31,30,33,33,0,0,0,0,0],
@@ -262,7 +262,7 @@ let DATA = {
 // 목표 (시트 목표열 fallback — 새로고침 시 시트값으로 대체)
 let TARGETS = {
   '매출':1029.0, '소각매출':528.0, '스팀매출':501.0,
-  '가동일수':28, '일평균소각량':115, '평균매입단가':150000,
+  '가동일수':28, '일평균소각량':115, '폐기물소각단가':150000,
   '총스팀판매량':15000, '시간당생산량':23.0,
   '바닥재발생비율':20, '톤당약품비':20000, '매입톤':3520
 };
@@ -478,7 +478,7 @@ function updateTargetNotes(pinfo){
   const be=document.getElementById('dashBaseDate');
   if(be && document.activeElement!==be) be.value=`${YEAR}-${String(bd.m).padStart(2,'0')}-${String(bd.d).padStart(2,'0')}`;
   document.getElementById('tgRev').textContent=`월 매출 ${fmt(Math.round(TARGETS['매출']))}백만원`;
-  document.getElementById('tgOps').textContent=`평균매입단가 ${fmt1(TARGETS['평균매입단가']/10000)}만원`;
+  document.getElementById('tgOps').textContent=`폐기물소각단가 ${fmt1(TARGETS['폐기물소각단가']/10000)}만원`;
   document.getElementById('tgStm').textContent=`시간당 생산량 ${fmt1(TARGETS['시간당생산량'])} ton/h`;
   // 월말 기준이면 pinfo=null → 예상치 문구 자체를 숨김
   const info=pinfo?` · 옅은 구간 = 당월 예상치 (${pinfo.src}, ${pinfo.day}일 → ${pinfo.dim}일 환산)`:'';
@@ -546,12 +546,12 @@ function render(){
              targetLine(()=>TARGETS['매출'],()=>`목표 ${fmt(Math.round(TARGETS['매출']))}`,'y')]
   });
 
-  // 2. 가동지표 (막대=일평균소각량, 꺾은선=평균매입단가 만원)
+  // 2. 가동지표 (막대=일평균소각량, 꺾은선=폐기물소각단가 만원)
   charts.ops=new Chart(document.getElementById('chartOps'),{
     data:{labels,datasets:[
       {type:'bar',label:'일평균소각량(ton)',data:cidx.map(i=>nz(DATA['일평균소각량'][i])),backgroundColor:BLUE_L,yAxisID:'y',
        order:2,datalabels:{...barInside,color:'#fff',display:true,formatter:v=>v?fmt(v):''}},
-      {type:'line',label:'평균매입단가(만원)',data:cidx.map(i=>nz(DATA['평균매입단가'][i]/10000)),yAxisID:'y1',
+      {type:'line',label:'폐기물소각단가(만원)',data:cidx.map(i=>nz(DATA['폐기물소각단가'][i]/10000)),yAxisID:'y1',
        borderColor:WARN,backgroundColor:WARN,borderWidth:2.5,tension:.3,pointRadius:4,pointBackgroundColor:'#fff',pointBorderWidth:2,spanGaps:false,
        order:1,datalabels:{...dlBase,color:WARN,anchor:'end',align:'top',display:true,formatter:v=>v?fmt1(v):''}}
     ]},
@@ -568,7 +568,7 @@ function render(){
       }
     },
     plugins:[axisUnit('ton','만원'),topBoxPlugin('dayBox',dayBox),
-             targetLine(()=>TARGETS['평균매입단가']/10000,()=>`목표 ${fmt1(TARGETS['평균매입단가']/10000)}만원`,'y1')]
+             targetLine(()=>TARGETS['폐기물소각단가']/10000,()=>`목표 ${fmt1(TARGETS['폐기물소각단가']/10000)}만원`,'y1')]
   });
 
   // 3. 스팀지표 (막대=총스팀 판매량 + 당월 예상치 음영, 꺾은선=시간당 생산량)
@@ -693,7 +693,7 @@ function buildReportModel(baseDate){
     row('  스팀생산 (백만원)','스팀매출',{f:r1,convert:true,target:TARGETS['스팀매출']}),
     row('총스팀 판매량 (톤)','총스팀판매량',{convert:true,target:TARGETS['총스팀판매량']}),
     row('시간당 생산량 (톤/hr)','시간당생산량',{f:r1,target:TARGETS['시간당생산량']}),
-    row('평균매입단가 (원/톤)','평균매입단가',{target:TARGETS['평균매입단가']})
+    row('폐기물소각단가 (원/톤)','폐기물소각단가',{target:TARGETS['폐기물소각단가']})
   ];
   const ops=[
     row('50% 이상 가동일 (일)','가동일수',{target:TARGETS['가동일수']}),

@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -14,6 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.0/dist/index.iife.js"></script>
 <style>
   :root{
+    color-scheme: only light;   /* 모바일 브라우저 강제 다크모드 반전 차단 */
     --blue:#2F5496;
     --blue-l:#5B8FD6;
     --blue-xl:#A9C5EA;
@@ -27,6 +30,7 @@
     --txt-sub:#6B7686;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
+  html{background:var(--bg);}
   body{
     font-family:'맑은 고딕','Malgun Gothic',-apple-system,sans-serif;
     background:var(--bg); color:var(--txt);
@@ -143,7 +147,7 @@
   <header class="top">
     <div class="ttl">
       <h1>HLB에너지 월별 운영 대시보드</h1>
-      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 기초자료 : Google Sheets <b>「보고서」</b> 시트(주간점검) &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v8 (2026-07-06)</span></div>
+      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 기초자료 : Google Sheets <b>「보고서」</b> 시트(주간점검) &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v9 (2026-07-06)</span></div>
     </div>
     <div class="btns">
       <button class="btn-report" id="reportBtn" title="격주 경영현황 보고서(.docx) 생성">

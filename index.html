@@ -185,9 +185,11 @@
 <div class="modal-bg" id="modalBg">
   <div class="modal">
     <h3>격주 경영현황 보고서 생성 (.docx)</h3>
-    <label for="repDate">기준일자</label>
+    <label for="repDate">기준일</label>
     <input type="date" id="repDate">
-    <div class="hint">기준일자의 월은 부분 실적(월환산 적용), 그 이전 월은 확정 실적으로 처리됩니다. 시트 데이터가 기준일자까지 입력돼 있는지 먼저 확인하세요.</div>
+    <label for="repWriteDate">작성일</label>
+    <input type="date" id="repWriteDate">
+    <div class="hint">기준일의 월은 부분 실적(월환산 적용), 그 이전 월은 확정 실적으로 처리됩니다. 시트 데이터가 기준일까지 입력돼 있는지 먼저 확인하세요. 작성일은 보고서 표지에 표기됩니다.</div>
     <label for="repHps">HPS 협상 경과</label>
     <textarea id="repHps" placeholder="협상 일자·주요 쟁점·합의/미합의 사항·다음 단계"></textarea>
     <label for="repOne">1회성 비용 발생</label>
@@ -632,6 +634,8 @@ document.getElementById('reportBtn').addEventListener('click',()=>{
   if(p && BASEDAY){ def=`${YEAR}-${String(p.m).padStart(2,'0')}-${String(p.day).padStart(2,'0')}`; }
   else{ const d=new Date(); def=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   document.getElementById('repDate').value=def;
+  const _td=new Date();
+  document.getElementById('repWriteDate').value=_td.getFullYear()+'-'+String(_td.getMonth()+1).padStart(2,'0')+'-'+String(_td.getDate()).padStart(2,'0');
   modalBg.classList.add('on');
 });
 document.getElementById('repCancel').addEventListener('click',()=>modalBg.classList.remove('on'));
@@ -684,8 +688,9 @@ function buildReportModel(baseDate){
 
 async function makeReport(){
   const dstr=document.getElementById('repDate').value;
-  if(!dstr){ alert('기준일자를 선택하세요.'); return; }
+  if(!dstr){ alert('기준일을 선택하세요.'); return; }
   const baseDate=new Date(dstr+'T00:00:00');
+  const wstr=document.getElementById('repWriteDate').value;
   const model=buildReportModel(baseDate);
   const hps=document.getElementById('repHps').value.trim();
   const one=document.getElementById('repOne').value.trim();
@@ -737,6 +742,9 @@ async function makeReport(){
   }
 
   const dateFmt=`${model.y}. ${String(model.m).padStart(2,'0')}. ${String(model.day).padStart(2,'0')}.`;
+  const writeFmt = wstr
+    ? (()=>{const wd=new Date(wstr+'T00:00:00'); return `${wd.getFullYear()}. ${String(wd.getMonth()+1).padStart(2,'0')}. ${String(wd.getDate()).padStart(2,'0')}.`;})()
+    : '(작성일 기재)';
   const doc=new Document({
     styles:{default:{document:{run:{font:FONT,size:21},paragraph:{spacing:{line:240}}}}},
     sections:[{
@@ -744,10 +752,10 @@ async function makeReport(){
         margin:{top:1134,right:1276,bottom:1000,left:1276,header:708,footer:708}}},
       children:[
         new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:40},
-          children:[new TextRun({text:'HLB에너지 경영현황 격주보고',bold:true,size:32,font:FONT})]}),
+          children:[new TextRun({text:'HLB에너지 경영현황 보고',bold:true,size:32,font:FONT})]}),
         new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},
           border:{bottom:{style:BorderStyle.SINGLE,size:8,color:NAVY,space:4}},
-          children:[new TextRun({text:`기준일자: ${dateFmt}  |  보고대상: 그룹 경영진  |  보고주기: 격주  |  작성: HLB에너지`,size:19,color:GREY,font:FONT})]}),
+          children:[new TextRun({text:`HLBI      기준일 ${dateFmt}      작성일 ${writeFmt}`,size:19,color:GREY,font:FONT})]}),
         sectionTitle('1. 매출지표'),
         makeTable(model.header,model.rev),
         sectionTitle('2. 운영지표'),

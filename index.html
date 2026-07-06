@@ -768,7 +768,7 @@ async function makeReport(){
       children:[new TextRun({text:'HLB에너지 경영현황 보고',bold:true,size:32,font:FONT})]}),
     new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120},
       border:{bottom:{style:BorderStyle.SINGLE,size:8,color:NAVY,space:4}},
-      children:[new TextRun({text:`HLBI      기준일 ${dateFmt}      작성일 ${writeFmt}${schedLabel?'      구분 '+schedLabel:''}`,size:19,color:GREY,font:FONT})]}),
+      children:[new TextRun({text:`${schedLabel?'구분 '+schedLabel+'      ':''}기준일 ${dateFmt}      작성일 ${writeFmt}      HLBI`,size:19,color:GREY,font:FONT})]}),
     sectionTitle('1. 매출지표'),
     makeTable(model.header,model.rev),
     sectionTitle('2. 운영지표'),

@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>HLB에너지 월별 운영 대시보드</title>
-<!-- redeploy: v10 새로고침 시 최근일자 기준 반영 -->
+<!-- redeploy: v11 최근업데이트일 표기 + 모바일 흰배경 가독성 -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
@@ -112,6 +112,14 @@
     table.ops{font-size:11.5px;}
     table.ops th, table.ops td{padding:6px 6px;}
     .btn-report{display:none;}
+    /* 모바일 가독성: 흰 배경 + 카드 경계 강화 + 진한 글자 */
+    html, body{ background:#FFFFFF; }
+    .card{ border:1px solid #C7D0DC; box-shadow:0 1px 5px rgba(30,42,56,.08); }
+    .ttl h1{ color:#16202E; }
+    .ttl .sub{ color:#33415A; }
+    .ttl .sub b{ color:var(--navy); }
+    .note{ color:#455066; }
+    .card h2{ color:var(--navy); }
   }
 
   /* ── 보고서 생성 모달 ── */
@@ -147,7 +155,7 @@
   <header class="top">
     <div class="ttl">
       <h1>HLB에너지 월별 운영 대시보드</h1>
-      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 기초자료 : Google Sheets <b>「보고서」</b> 시트(주간점검) &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v10 (2026-07-06)</span></div>
+      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 최근 업데이트일 : <b id="lastUpdate">2026.07.05</b> &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v11 (2026-07-06)</span></div>
     </div>
     <div class="btns">
       <button class="btn-report" id="reportBtn" title="격주 경영현황 보고서(.docx) 생성">
@@ -218,6 +226,8 @@
 
 <script>
 Chart.register(ChartDataLabels);
+Chart.defaults.color = '#33415A';           // 축·범례 글자 진하게(가독성)
+Chart.defaults.borderColor = '#E1E7EF';
 
 // ── 데이터 소스: HLB에너지_주간점검사항 「보고서」 시트 ──
 const SHEET_ID = '1tmt9y0BFKslJVQaARJKDNFpBUBppcGXG';
@@ -274,7 +284,8 @@ let TARGETS = {
 };
 
 // 시트 「기준일」 행 (선택, 예: "6/6") — 있으면 월환산 경과일수의 기준
-let BASEDAY = null; // {m, d}
+let BASEDAY = null; // {m, d} — 편집 가능한 대시보드 기준일
+let LAST_UPDATE = {y:2026,m:7,d:5}; // 시트 최상단 「최근일자」(읽기전용 표기)
 
 let charts = {};
 
@@ -336,7 +347,7 @@ function parseCSV(text){
 function csvToData(text){
   const rows=parseCSV(text);
   const out={}, tg={};
-  let baseday=null;
+  let baseday=null, lastUpdate=null;
   for(const r of rows){
     const lb=(r[1]||'').replace(/\s/g,'');
     if(lb==='최근일자' || lb==='기준일'){
@@ -345,6 +356,7 @@ function csvToData(text){
       let mm=s.match(/(\d{4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/); // "2026. 7. 5" 형식
       if(mm){ baseday={y:+mm[1], m:+mm[2], d:+mm[3]}; }
       else { mm=s.match(/(\d{1,2})\s*[\/월.\-]\s*(\d{1,2})/); if(mm) baseday={m:+mm[1], d:+mm[2]}; }
+      if(lb==='최근일자' && baseday) lastUpdate={...baseday};
       continue;
     }
     const key=LABEL_MAP[lb];
@@ -361,7 +373,7 @@ function csvToData(text){
     out['매출']=out['소각매출'].map((v,i)=>Math.round((v+(out['스팀매출']?.[i]||0))*10)/10);
   }
   if(Object.keys(out).length<5) throw new Error('시트 형식 불일치');
-  return { data:{...DATA, ...out}, targets:{...TARGETS, ...tg}, baseday };
+  return { data:{...DATA, ...out}, targets:{...TARGETS, ...tg}, baseday, lastUpdate };
 }
 
 // ── 기간 표시 ──
@@ -486,6 +498,8 @@ function updateTargetNotes(pinfo){
   const bd=BASEDAY||{m:7,d:5};
   const be=document.getElementById('dashBaseDate');
   if(be && document.activeElement!==be) be.value=`${YEAR}-${String(bd.m).padStart(2,'0')}-${String(bd.d).padStart(2,'0')}`;
+  const lu=document.getElementById('lastUpdate');
+  if(lu && LAST_UPDATE) lu.textContent=`${LAST_UPDATE.y||YEAR}.${String(LAST_UPDATE.m).padStart(2,'0')}.${String(LAST_UPDATE.d).padStart(2,'0')}`;
   document.getElementById('tgRev').textContent=`월 매출 ${fmt(Math.round(TARGETS['매출']))}백만원`;
   document.getElementById('tgOps').textContent=`폐기물소각단가 ${fmt1(TARGETS['폐기물소각단가']/10000)}만원`;
   document.getElementById('tgStm').textContent=`시간당 생산량 ${fmt1(TARGETS['시간당생산량'])} ton/h`;
@@ -633,6 +647,7 @@ async function refresh(){
     if(text.trim().startsWith('<')) throw new Error('접근 권한 없음(비공개 시트)');
     const parsed=csvToData(text);
     DATA=parsed.data; TARGETS=parsed.targets; BASEDAY=parsed.baseday;
+    if(parsed.lastUpdate) LAST_UPDATE=parsed.lastUpdate;
     render(); stamp();
     st.className='ok'; st.textContent='최신 데이터로 갱신되었습니다.';
   }catch(e){

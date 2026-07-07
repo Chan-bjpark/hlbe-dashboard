@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>HLB에너지 월별 운영 대시보드</title>
-<!-- redeploy: v9 모바일 라이트모드 고정 재배포 -->
+<!-- redeploy: v10 새로고침 시 최근일자 기준 반영 -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
@@ -147,7 +147,7 @@
   <header class="top">
     <div class="ttl">
       <h1>HLB에너지 월별 운영 대시보드</h1>
-      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 기초자료 : Google Sheets <b>「보고서」</b> 시트(주간점검) &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v9 (2026-07-06)</span></div>
+      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 기초자료 : Google Sheets <b>「보고서」</b> 시트(주간점검) &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v10 (2026-07-06)</span></div>
     </div>
     <div class="btns">
       <button class="btn-report" id="reportBtn" title="격주 경영현황 보고서(.docx) 생성">
@@ -339,9 +339,12 @@ function csvToData(text){
   let baseday=null;
   for(const r of rows){
     const lb=(r[1]||'').replace(/\s/g,'');
-    if(lb==='기준일'){
-      const mm=String(r[TGT_COL]||'').match(/(\d{1,2})\s*[\/월.\-]\s*(\d{1,2})/);
-      if(mm) baseday={m:+mm[1], d:+mm[2]};
+    if(lb==='최근일자' || lb==='기준일'){
+      if(baseday && lb==='기준일') continue;              // 최근일자(시트 최상단) 우선
+      const s=String(r[TGT_COL]||'');
+      let mm=s.match(/(\d{4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/); // "2026. 7. 5" 형식
+      if(mm){ baseday={y:+mm[1], m:+mm[2], d:+mm[3]}; }
+      else { mm=s.match(/(\d{1,2})\s*[\/월.\-]\s*(\d{1,2})/); if(mm) baseday={m:+mm[1], d:+mm[2]}; }
       continue;
     }
     const key=LABEL_MAP[lb];
@@ -480,7 +483,7 @@ function renderOpsTable(){
 
 // ── 목표 문구 갱신 ──
 function updateTargetNotes(pinfo){
-  const bd=BASEDAY||{m:6,d:7};
+  const bd=BASEDAY||{m:7,d:5};
   const be=document.getElementById('dashBaseDate');
   if(be && document.activeElement!==be) be.value=`${YEAR}-${String(bd.m).padStart(2,'0')}-${String(bd.d).padStart(2,'0')}`;
   document.getElementById('tgRev').textContent=`월 매출 ${fmt(Math.round(TARGETS['매출']))}백만원`;

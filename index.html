@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>HLB에너지 월별 운영 대시보드</title>
-<!-- redeploy: v12 새로고침 시 보고 스케줄(기타사항) 재조회 -->
+<!-- redeploy: v13 보고서 모달 열때마다 시트 서술내용 재조회 -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
@@ -155,7 +155,7 @@
   <header class="top">
     <div class="ttl">
       <h1>HLB에너지 월별 운영 대시보드</h1>
-      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 최근 업데이트일 : <b id="lastUpdate">2026.07.05</b> &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v12 (2026-07-06)</span></div>
+      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 최근 업데이트일 : <b id="lastUpdate">2026.07.05</b> &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v13 (2026-07-06)</span></div>
     </div>
     <div class="btns">
       <button class="btn-report" id="reportBtn" title="격주 경영현황 보고서(.docx) 생성">
@@ -661,8 +661,13 @@ async function refresh(){
 
 // ═════════════════ 보고서 생성 (.docx) ═════════════════
 const modalBg=document.getElementById('modalBg');
-document.getElementById('reportBtn').addEventListener('click',()=>{
-  // 스케줄이 로드돼 값이 채워져 있으면 유지, 비어있을 때만 기본값 세팅
+document.getElementById('reportBtn').addEventListener('click', async ()=>{
+  const btn=document.getElementById('reportBtn');
+  const orig=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='시트 확인중…';
+  try{ await loadSchedule(); }catch(e){}   // 모달 열 때마다 시트의 최신 서술내용(HPS·기타 등) 재조회
+  btn.disabled=false; btn.innerHTML=orig;
+  // 스케줄이 값을 채웠으면 유지, 비어있을 때만 기본값 세팅
   const rd=document.getElementById('repDate'), rw=document.getElementById('repWriteDate');
   if(!rd.value){
     const p=partialInfo();

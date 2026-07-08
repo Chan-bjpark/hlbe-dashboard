@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>HLB에너지 월별 운영 대시보드</title>
-<!-- redeploy: v13 보고서 모달 열때마다 시트 서술내용 재조회 -->
+<!-- redeploy: v14 멀티라인 서술내용 CRLF 정리(줄바꿈 보존) -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
@@ -155,7 +155,7 @@
   <header class="top">
     <div class="ttl">
       <h1>HLB에너지 월별 운영 대시보드</h1>
-      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 최근 업데이트일 : <b id="lastUpdate">2026.07.05</b> &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v13 (2026-07-06)</span></div>
+      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 최근 업데이트일 : <b id="lastUpdate">2026.07.05</b> &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v14 (2026-07-06)</span></div>
     </div>
     <div class="btns">
       <button class="btn-report" id="reportBtn" title="격주 경영현황 보고서(.docx) 생성">
@@ -890,9 +890,10 @@ async function loadSchedule(){
     const txt=await res.text();
     if(txt.trim().startsWith('<')) throw 0;
     const rows=parseCSV(txt);
+    const clean=s=>String(s||'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').trim(); // CRLF·줄끝 공백 정리(셀 내 줄바꿈 보존)
     SCHEDULE=rows.slice(1).filter(r=>(r[0]||'').trim()).map(r=>({
       label:(r[0]||'').trim(), base:dcell(r[1]), write:dcell(r[2]),
-      hps:(r[3]||'').trim(), one:(r[4]||'').trim(), etc:(r[5]||'').trim()
+      hps:clean(r[3]), one:clean(r[4]), etc:clean(r[5])
     }));
     if(!SCHEDULE.length) return;
     const sel=document.getElementById('repSchedule');

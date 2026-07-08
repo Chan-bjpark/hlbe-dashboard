@@ -9,7 +9,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>HLB에너지 월별 운영 대시보드</title>
-<!-- redeploy: v11 최근업데이트일 표기 + 모바일 흰배경 가독성 -->
+<!-- redeploy: v12 새로고침 시 보고 스케줄(기타사항) 재조회 -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
@@ -155,7 +155,7 @@
   <header class="top">
     <div class="ttl">
       <h1>HLB에너지 월별 운영 대시보드</h1>
-      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 최근 업데이트일 : <b id="lastUpdate">2026.07.05</b> &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v11 (2026-07-06)</span></div>
+      <div class="sub">기준일 <input type="date" id="dashBaseDate" class="inl-date"> &nbsp;|&nbsp; 최근 업데이트일 : <b id="lastUpdate">2026.07.05</b> &nbsp;|&nbsp; 기준월 : <b id="period">2026년 3월~6월</b> &nbsp;|&nbsp; <span style="color:#AEB6C0;font-size:11px;">화면버전 v12 (2026-07-06)</span></div>
     </div>
     <div class="btns">
       <button class="btn-report" id="reportBtn" title="격주 경영현황 보고서(.docx) 생성">
@@ -649,12 +649,13 @@ async function refresh(){
     DATA=parsed.data; TARGETS=parsed.targets; BASEDAY=parsed.baseday;
     if(parsed.lastUpdate) LAST_UPDATE=parsed.lastUpdate;
     render(); stamp();
-    st.className='ok'; st.textContent='최신 데이터로 갱신되었습니다.';
+    st.className='ok'; st.textContent='최신 데이터·보고 서술내용으로 갱신되었습니다.';
   }catch(e){
     st.className='err';
     st.textContent='자동 새로고침 실패('+e.message+') — 마지막 값을 표시 중입니다. 시트 공유설정을 확인하세요.';
   }finally{
     btn.classList.remove('spin');
+    loadSchedule();   // 보고 스케줄 시트(기타사항 등 서술내용)도 함께 재조회
   }
 }
 
@@ -877,6 +878,8 @@ function applySchedule(i){
 }
 async function loadSchedule(){
   try{
+    const selEl=document.getElementById('repSchedule');
+    const prevLabel=(selEl && selEl.value!=='' && SCHEDULE[+selEl.value]) ? SCHEDULE[+selEl.value].label : null;
     const res=await fetch(SCHED_URL+'&_='+Date.now());
     if(!res.ok) throw 0;
     const txt=await res.text();
@@ -890,10 +893,14 @@ async function loadSchedule(){
     const sel=document.getElementById('repSchedule');
     sel.innerHTML='<option value="">— 직접 입력 —</option>'+
       SCHEDULE.map((s,i)=>`<option value="${i}">${s.label} · 기준 ${s.base}</option>`).join('');
-    // 기본 선택 = 기준일 ≤ 오늘 중 가장 최근(현재 보고 사이클)
-    const now=Date.now(); let pick=0, best=-Infinity;
-    SCHEDULE.forEach((s,i)=>{ const t=new Date((s.base||'2100-01-01')+'T00:00:00').getTime();
-      if(t<=now && t>best){ best=t; pick=i; } });
+    // 이전 선택 유지, 없으면 기준일 ≤ 오늘 중 가장 최근(현재 보고 사이클)
+    let pick=-1;
+    if(prevLabel) pick=SCHEDULE.findIndex(s=>s.label===prevLabel);
+    if(pick<0){ const now=Date.now(); let best=-Infinity;
+      SCHEDULE.forEach((s,i)=>{ const t=new Date((s.base||'2100-01-01')+'T00:00:00').getTime();
+        if(t<=now && t>best){ best=t; pick=i; } });
+      if(pick<0) pick=0;
+    }
     sel.value=String(pick);
     applySchedule(pick);
   }catch(e){ /* 스케줄 미로드 시 직접 입력 유지 */ }
@@ -902,10 +909,9 @@ document.getElementById('repSchedule').addEventListener('change',e=>{
   if(e.target.value!=='') applySchedule(+e.target.value);
 });
 
-// 초기 렌더 (임베드값) 후 자동 새로고침 1회 시도 + 스케줄 로드
+// 초기 렌더 후 자동 새로고침(데이터 + 보고 스케줄) 1회 시도
 render(); stamp();
 refresh();
-loadSchedule();
 </script>
 </body>
 </html>
